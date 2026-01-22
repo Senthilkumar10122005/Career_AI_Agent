@@ -14,10 +14,12 @@ import db
 import scraper
 import ai_engine
 
+    
+    # --- 1. INITIALIZATION & PERSISTENCE ---
 if "auth_mode" not in st.session_state:
     st.session_state["auth_mode"] = "Login" 
 
-# --- 1. INITIALIZATION & PERSISTENCE ---
+
 try:
     img = Image.open("logo.png")
     st.set_page_config(page_title="Career AI Agent", page_icon=img, layout="wide")
@@ -422,72 +424,89 @@ elif page == "In-Demand Courses":
 # --- 6. PAGE LOGIC: GOAL TRACKER (ENHANCED) ---
 elif page == "Goal Tracker (Emails)":
     st.title("🎯 AI-Powered Learning Journey")
-    st.write("Pick a subject, and we will send you a specific module to learn every single day.")
+    st.markdown("""
+        <div style='background-color: #f0f2f6; padding: 15px; border-radius: 10px; border-left: 5px solid #007bff;'>
+            Pick a subject, and our AI will architect a custom roadmap for you. 
+            <b>Every morning at 8:00 AM IST</b>, you'll receive a module with AI-generated notes in your inbox.
+        </div>
+    """, unsafe_allow_html=True)
 
+    # --- GOAL CREATION FORM ---
     with st.form("goal_form"):
-        g_name = st.text_input("What subject do you want to master?", placeholder="e.g. Python, AWS, React")
+        st.subheader("Start a New Journey")
+        g_name = st.text_input("What subject do you want to master?", placeholder="e.g. Python for DevOps, Cloud Architecture")
         g_days = st.number_input("Duration (Days)", min_value=5, max_value=90, value=30)
         
         if st.form_submit_button("Generate My Roadmap 🚀"):
             if g_name:
-                with st.spinner(f"AI is designing your {g_days}-day syllabus..."):
-                    # 1. FIXED: Added missing closing parenthesis
+                with st.spinner(f"🪄 AI is architecting your {g_days}-day syllabus..."):
+                    # 1. Generate Syllabus
                     syllabus = ai_engine.generate_roadmap(g_name, g_days)
                     
-                    # 2. FIXED: Store in DB with exactly 4 arguments as defined in your db.py
+                    # 2. Store in Supabase
                     db.add_goal(st.session_state['username'], g_name, g_days, syllabus)
                     
-                st.toast(f"Roadmap Created! Tomorrow at 8:00 AM, you'll receive Day 1: {syllabus.split(';')[0]}")
-                st.rerun() # Refresh to show the new journey
+                    # 3. ENHANCEMENT: Visual Celebrations
+                    st.snow() # The snow effect you wanted!
+                    st.balloons()
+                    st.toast(f"Success! Journey for {g_name} started.", icon="✅")
+                    
+                st.success(f"Roadmap Created! First module arrives tomorrow at 8:00 AM.")
+                time.sleep(2) 
+                st.rerun() 
             else:
                 st.error("Please enter a subject.")
 
     st.divider()
     st.subheader("Your Active Journeys")
-active_goals = db.get_user_goals(st.session_state['username'])
+    
+    active_goals = db.get_user_goals(st.session_state['username'])
 
-if active_goals:
-    for g in active_goals:
-        # g structure: (id, goal_name, start_date, days, is_active, syllabus)
-        goal_id = g[0]
-        
-        # 1. CLEAN THE TITLE: Remove "GUIDE:" prefix if it exists
-        display_title = g[1].replace("GUIDE: ", "") if g[1] else "Career Goal"
-        
-        with st.expander(f"📅 {display_title} ({g[3]} Days)"):
-            # Create two columns to place the delete button on the right
-            col_text, col_del = st.columns([0.9, 0.1])
+    if not active_goals:
+        st.info("You don't have any active journeys yet. Create one above to start learning!")
+    else:
+        for g in active_goals:
+            # g structure: (id, goal_name, start_date, days, is_active, syllabus)
+            goal_id, title, start_date, total_days, is_active, syllabus = g
             
-            with col_text:
-                st.write(f"### 🎯 Learning Roadmap for {display_title}")
+            # 1. CALCULATE PROGRESS
+            # We assume start_date is stored as 'YYYY-MM-DD'
+            start_dt = datetime.strptime(str(start_date), '%Y-%m-%d')
+            days_passed = (datetime.now() - start_dt).days
+            current_day = days_passed + 1 # Day 1 starts today
             
-            with col_del:
-                # Use a unique key for each button using the goal_id
-                if st.button("🗑️Delete", key=f"del_{goal_id}", help="Delete this journey"):
+            # Progress percentage
+            progress_pct = min(max(current_day / total_days, 0.0), 1.0)
+            
+            display_title = title.replace("GUIDE: ", "")
+            
+            with st.expander(f"📅 {display_title} (Day {min(current_day, total_days)} of {total_days})"):
+                
+                # 2. PROGRESS BAR
+                st.write(f"**Overall Progress: {int(progress_pct * 100)}%**")
+                st.progress(progress_pct)
+                
+                # DELETE BUTTON
+                if st.button("🗑️ Stop Journey", key=f"del_{goal_id}"):
                     if db.delete_goal_by_id(goal_id):
-                        st.success(f"Deleted {display_title}")
+                        st.toast("Journey removed.")
                         st.rerun()
-                    else:
-                        st.error("Error deleting journey.")
-            
-            if g[5]: # Ensure syllabus exists
-                # 2. CLEAN THE SYLLABUS: Filter out "Not specified" or metadata lines
-                raw_topics = g[5].split(';') 
-                
-                # We filter out any parts that contain "Not specified" to keep it professional
-                clean_topics = [
-                    t.strip() for t in raw_topics 
-                    if "Not specified" not in t and t.strip() != ""
-                ]
-                
-                # 3. DISPLAY PROFESSIONALLY
-                if clean_topics:
+
+                if syllabus:
+                    st.markdown("---")
+                    raw_topics = syllabus.split(';')
+                    clean_topics = [t.strip() for t in raw_topics if t.strip() and "Not specified" not in t]
+
                     for i, topic in enumerate(clean_topics):
-                        st.markdown(f"**Day {i+1}:** {topic}")
-                else:
-                    # Fallback if the entire syllabus was just "Not specified" text
-                    st.info(f"Day 1: Introduction to {display_title}")
-                    st.info(f"Day 2: Core Concepts of {display_title}")
-                    st.caption("AI is refining the rest of your modules...")
-            else:
-                    st.warning("Roadmap details are being generated. Check back in a moment!")
+                        day_num = i + 1
+                        
+                        # 3. VISUAL STATUS LOGIC
+                        if day_num < current_day:
+                            # Past Days
+                            st.markdown(f"✅ <span style='color:gray; text-decoration:line-through;'>Day {day_num}: {topic}</span>", unsafe_allow_html=True)
+                        elif day_num == current_day:
+                            # Current Day
+                            st.markdown(f"🎯 **Day {day_num}: {topic}** <span style='color:#007bff; font-weight:bold;'>(TODAY)</span>", unsafe_allow_html=True)
+                        else:
+                            # Future Days
+                            st.markdown(f"⚪ Day {day_num}: {topic}")

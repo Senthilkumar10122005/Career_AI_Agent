@@ -1,3 +1,4 @@
+import sqlite3
 import psycopg2
 import streamlit as st
 from datetime import datetime
@@ -175,6 +176,18 @@ def update_tables():
         print("✅ Database columns updated!")
     except Exception as e:
         print(f"❌ Migration Error: {e}")
+
+def get_all_active_goals_global():
+    import sqlite3
+    conn = sqlite3.connect('career_agent.db')
+    c = conn.cursor()
+    # Join goals with users to get the email address automatically
+    c.execute('''SELECT g.username, g.goal_name, g.start_date, g.days, g.syllabus, u.email 
+                 FROM goals g 
+                 JOIN users u ON g.username = u.username''')
+    data = c.fetchall()
+    conn.close()
+    return data
 
 def delete_goal_by_id(goal_id):
     """Permanently removes a specific goal journey."""

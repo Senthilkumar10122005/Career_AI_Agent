@@ -1,68 +1,76 @@
-import psycopg2
-import smtplib
-from datetime import datetime
-from email.message import EmailMessage
 import os
+import smtplib
+from email.message import EmailMessage
+from datetime import datetime
+from supabase import create_client
+from groq import Groq # Swapped OpenAI for Groq
 
-def send_reminders():
-    # 1. Get Credentials and DB URL from GitHub Secrets
-    SENDER_EMAIL = os.environ.get("SENDER_EMAIL") 
-    APP_PASSWORD = os.environ.get("APP_PASSWORD")
-    DB_URL = os.environ.get("SUPABASE_DB_URL")
+def send_daily_reminders():
+    # 1. Get Secrets from GitHub Environment
+    url = os.environ.get("SUPABASE_URL")
+    key = os.environ.get("SUPABASE_KEY")
+    email_user = os.environ.get("SENDER_EMAIL")
+    email_pass = os.environ.get("APP_PASSWORD")
+    groq_key = os.environ.get("GROQ_API_KEY") # Use Groq Key
 
-    if not all([SENDER_EMAIL, APP_PASSWORD, DB_URL]):
-        print("❌ Error: Missing environment variables (SENDER_EMAIL, APP_PASSWORD, or SUPABASE_DB_URL).")
-        return
+    supabase = create_client(url, key)
+    groq_client = Groq(api_key=groq_key)
 
-    try:
-        # 2. Connect to Supabase
-        conn = psycopg2.connect(DB_URL)
-        c = conn.cursor()
+    # 2. Fetch Active Goals from Supabase
+    # Assuming your goals table has a foreign key to users to get the email
+    response = supabase.table("goals").select("*, users(email)").eq("is_active", True).execute()
+    goals = response.data
+
+    for goal in goals:
+        user_email = goal['users']['email']
+        goal_name = goal['title']
+        syllabus = goal['syllabus'].split(';')
         
-        # 3. Get active goals (Note: Using %s for PostgreSQL instead of ?)
-        c.execute('''SELECT users.email, goals.goal_name, goals.start_date, goals.duration, goals.id 
-                     FROM goals JOIN users ON goals.username = users.username 
-                     WHERE goals.is_active = 1''')
-        
-        active_goals = c.fetchall()
-        today = datetime.now().date()
+        # Calculate current day based on start_date
+        start_date = datetime.strptime(goal['start_date'], '%Y-%m-%d')
+        current_day = (datetime.now() - start_date).days + 1
+        total_days = goal['total_days']
 
-        # 4. Loop through users and send emails
-        for email, g_name, start_dt, duration, g_id in active_goals:
-            try:
-                # Convert string date from DB to Python date object
-                start_date = datetime.strptime(start_dt, "%Y-%m-%d").date()
-                day_count = (today - start_date).days + 1
-
-                if 1 <= day_count <= duration:
-                    # Create the email
-                    msg = EmailMessage()
-                    msg.set_content(f"Good Morning!\n\nToday is Day {day_count} of your '{g_name}' challenge. Keep studying!\n\n- Your Career Guidance Team")
-                    msg['Subject'] = f"🚀 Day {day_count}: Your Daily Learning Goal"
-                    
-                    # This adds the professional sender name
-                    msg['From'] = f"Career Guidance <{SENDER_EMAIL}>"
-                    msg['To'] = email
-
-                    # Send the email via Gmail SMTP
-                    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
-                        smtp.login(SENDER_EMAIL, APP_PASSWORD)
-                        smtp.send_message(msg)
-                    print(f"✅ Reminder sent to {email} for Day {day_count}")
-                
-                elif day_count > duration:
-                    # Deactivate goal once finished
-                    c.execute("UPDATE goals SET is_active = 0 WHERE id = %s", (g_id,))
-                    conn.commit()
-                    print(f"🏁 Goal '{g_name}' completed for {email}. Deactivated.")
+        if 1 <= current_day <= total_days:
+            topic = syllabus[current_day-1] if current_day <= len(syllabus) else "Final Review"
             
+            # --- NEW: Generate AI Study Notes using GROQ ---
+            prompt = f"Provide 3 concise study points and 1 'Pro Tip' for Day {current_day} of learning {goal_name}. Topic: {topic}."
+            
+            completion = groq_client.chat.completions.create(
+                model="llama-3.3-70b-versatile", # Groq's fast model
+                messages=[{"role": "user", "content": prompt}]
+            )
+            notes = completion.choices[0].message.content
+
+            # --- 3. Send Professional Email ---
+            msg = EmailMessage()
+            msg['Subject'] = f"☀️ Day {current_day}: {topic}"
+            msg['From'] = f"Career AI Agent <{email_user}>"
+            msg['To'] = user_email
+            
+            html = f"""
+            <div style="font-family: sans-serif; border: 2px solid #007bff; padding: 20px; border-radius: 10px; max-width: 600px;">
+                <h2 style="color: #007bff; margin-top: 0;">Day {current_day}: {topic}</h2>
+                <p>Your daily module for <b>{goal_name}</b> is ready:</p>
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 4px solid #007bff;">
+                    {notes.replace('\n', '<br>')}
+                </div>
+                <p style="margin-top:20px; font-size: 0.9em; color: #666;">
+                    Progress: {int((current_day/total_days)*100)}% complete
+                </p>
+            </div>
+            """
+            msg.add_alternative(html, subtype='html')
+
+            try:
+                with smtplib.SMTP('smtp.gmail.com', 587) as smtp:
+                    smtp.starttls()
+                    smtp.login(email_user, email_pass)
+                    smtp.send_message(msg)
+                print(f"✅ Sent Day {current_day} to {user_email}")
             except Exception as e:
-                print(f"⚠️ Error processing goal for {email}: {e}")
-
-        conn.close()
-
-    except Exception as e:
-        print(f"❌ Database Connection Error: {e}")
+                print(f"❌ Failed for {user_email}: {e}")
 
 if __name__ == "__main__":
-    send_reminders()
+    send_daily_reminders()
