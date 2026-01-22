@@ -8,7 +8,7 @@ from PIL import Image
 import plotly.express as px
 import smtplib
 from email.message import EmailMessage
-
+import time
 # Import your custom modules
 import db
 import scraper
@@ -490,4 +490,4 @@ if active_goals:
                     st.info(f"Day 2: Core Concepts of {display_title}")
                     st.caption("AI is refining the rest of your modules...")
             else:
-                st.warning("Roadmap details are being generated. Check back in a moment!")
+                    st.warning("Roadmap details are being generated. Check back in a moment!")

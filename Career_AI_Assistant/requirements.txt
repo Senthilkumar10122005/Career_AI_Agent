@@ -8,3 +8,8 @@ python-dotenv
 plotly
 groq
 psycopg2-binary
+streamlit
+pypdf
+fpdf2
+Pillow
+plotly
