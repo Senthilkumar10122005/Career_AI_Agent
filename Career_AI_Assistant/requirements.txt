@@ -1,0 +1,10 @@
+streamlit
+pandas
+openai
+langchain
+beautifulsoup4
+requests
+python-dotenv
+plotly
+groq
+psycopg2-binary

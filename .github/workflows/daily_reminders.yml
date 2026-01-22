@@ -1,0 +1,23 @@
+name: Daily Career Reminder
+
+on:
+  schedule:
+    # 02:30 UTC is 08:00 AM IST
+    - cron: '30 2 * * *' 
+
+jobs:
+  send-mail:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.9'
+      - name: Run Reminder Script
+        env:
+          SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
+          APP_PASSWORD: ${{ secrets.APP_PASSWORD }}
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }} # Added this!
+        run: python reminder.py
