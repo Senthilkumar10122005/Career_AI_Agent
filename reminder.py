@@ -6,37 +6,57 @@ from supabase import create_client
 from groq import Groq 
 
 def send_daily_reminders():
-    # 1. Get Secrets
-    url = os.environ.get("SUPABASE_URL")
-    key = os.environ.get("SUPABASE_KEY")
+    # 1. Get Secrets - Using fallbacks to match your YAML env names
+    url = os.environ.get("SUPABASE_URL") or os.environ.get("SUPABASE_DB_URL")
+    key = os.environ.get("SUPABASE_KEY") or os.environ.get("SUPABASE_DB_KEY")
     email_user = os.environ.get("SENDER_EMAIL")
     email_pass = os.environ.get("APP_PASSWORD")
     groq_key = os.environ.get("GROQ_API_KEY")
 
-    supabase = create_client(url, key)
-    groq_client = Groq(api_key=groq_key)
+    # Critical Check: Stop the script before it crashes with "Invalid URL"
+    if not url or not key:
+        print(f"❌ Critical Error: Missing Database Credentials. URL: {'Found' if url else 'Missing'}, Key: {'Found' if key else 'Missing'}")
+        return
 
-    # 2. Fetch Active Goals (1 = Active)
-    response = supabase.table("goals").select("*, users(email)").eq("is_active", 1).execute()
-    goals = response.data
+    try:
+        supabase = create_client(url, key)
+        groq_client = Groq(api_key=groq_key)
+    except Exception as e:
+        print(f"❌ Failed to initialize clients: {e}")
+        return
+
+    # 2. Fetch Active Goals (is_active = 1 as seen in your DB image)
+    try:
+        response = supabase.table("goals").select("*, users(email)").eq("is_active", 1).execute()
+        goals = response.data
+    except Exception as e:
+        print(f"❌ Database Query Failed: {e}")
+        return
 
     print(f"🔍 Found {len(goals)} active goals.")
 
     for goal in goals:
         try:
+            # Extract joined user email safely
             user_data = goal.get('users')
-            if not user_data: continue
+            if not user_data: 
+                print(f"⚠️ Skipping Goal {goal.get('id')}: No linked user email found.")
+                continue
             
             user_email = user_data['email']
-            goal_name = goal.get('goal_name', 'Career Goal')
+            goal_name = goal.get('goal_name', 'Career Goal') # Match DB column: goal_name
             syllabus_text = goal.get('syllabus', '')
             
             if not syllabus_text: continue
                 
             syllabus_list = syllabus_text.split(';')
-            total_days = int(goal.get('duration', 1))
+            total_days = int(goal.get('duration', 1)) # Match DB column: duration
             
-            start_date = datetime.strptime(goal['start_date'], '%Y-%m-%d')
+            # Start date calculation
+            start_date_str = goal.get('start_date')
+            if not start_date_str: continue
+            
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
             current_day = (datetime.now() - start_date).days + 1
 
             if 1 <= current_day <= total_days:
@@ -50,7 +70,7 @@ def send_daily_reminders():
                 )
                 raw_notes = completion.choices[0].message.content
                 
-                # FIX: Move replace outside the f-string to avoid SyntaxError
+                # FIX: Keep replace outside the f-string to avoid SyntaxError backslash issues
                 formatted_notes = raw_notes.replace('\n', '<br>')
 
                 # --- Email Construction ---
@@ -61,11 +81,12 @@ def send_daily_reminders():
                 
                 html_body = f"""
                 <div style="font-family: sans-serif; border: 2px solid #6366f1; padding: 20px; border-radius: 10px; max-width: 600px;">
-                    <h2 style="color: #6366f1;">Day {current_day}: {topic}</h2>
+                    <h2 style="color: #6366f1; margin-top: 0;">Day {current_day}: {topic}</h2>
                     <p>Your learning module for <b>{goal_name}</b>:</p>
                     <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 4px solid #6366f1;">
                         {formatted_notes}
                     </div>
+                    <p style="margin-top: 15px; color: #777; font-size: 0.8em;">Keep pushing towards your goals!</p>
                 </div>
                 """
                 msg.add_alternative(html_body, subtype='html')
@@ -75,10 +96,10 @@ def send_daily_reminders():
                     smtp.starttls()
                     smtp.login(email_user, email_pass)
                     smtp.send_message(msg)
-                print(f"✅ Mail sent to {user_email}")
+                print(f"✅ Mail successfully sent to {user_email}")
         
         except Exception as e:
-            print(f"❌ Error: {str(e)}")
+            print(f"❌ Error processing goal for {goal.get('username', 'unknown')}: {str(e)}")
 
 if __name__ == "__main__":
     send_daily_reminders()
