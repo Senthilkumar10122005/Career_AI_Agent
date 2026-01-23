@@ -1,3 +1,4 @@
+import os
 import streamlit as st
 import pandas as pd
 import pypdf
@@ -13,7 +14,40 @@ import time
 import db
 import scraper
 import ai_engine
+# 1. This must be imported to talk to your DB
+from supabase import create_client 
 
+# --- INITIALIZATION ---
+# Get credentials from your environment or secrets
+url = os.environ.get("SUPABASE_URL")
+key = os.environ.get("SUPABASE_KEY")
+
+# Create the client object that we use later in Phase 2
+if url and key:
+    supabase = create_client(url, key)
+else:
+    st.error("⚠️ Supabase credentials not found!")
+    st.stop()
+
+
+    
+if "system_prompt" not in st.session_state:
+    st.session_state.system_prompt = """
+You are an expert AI Career Coach acting like a mini ChatGPT.
+You help users with:
+- Resume optimization
+- Job description matching
+- Skill gap analysis
+- Interview preparation
+- Career guidance
+
+Rules:
+- Be concise but insightful
+- Use bullet points where helpful
+- Give actionable advice
+- Base answers strictly on Resume + Job Description when available
+- Ask follow-up questions only if useful
+"""
 
     # --- 1. INITIALIZATION & PERSISTENCE ---
 if "auth_mode" not in st.session_state:
@@ -414,7 +448,7 @@ elif page == "Dashboard & Jobs":
     st.header("🌍 Live Global Job Discovery")
     col_l, col_c, col_s = st.columns([2, 1, 1])
     with col_l: loc = st.text_input("Target City/State", value="Chennai")
-    with col_c: coun = st.selectbox("Country Code", [("India", "in"), ("USA", "us"), ("UK", "gb")], format_func=lambda x: x[0])
+    with col_c: coun = st.selectbox("Country Code", [("India", "in"), ("USA", "us"), ("UK", "gb"),("Germany", "de"),("Australia", "au")], format_func=lambda x: x[0])
     with col_s: 
         st.write("##"); search_trigger = st.button("🔍 Search Live Jobs", width='stretch')
 
@@ -436,57 +470,86 @@ elif page == "Dashboard & Jobs":
                 st.divider()
 
     st.markdown("---")
-    st.header("🎯 Phase 2: Resume Tailoring & AI Matching")
-    if saved_jobs_data:
-        df_saved = pd.DataFrame(saved_jobs_data, columns=["ID", "Company", "Role", "URL", "Desc", "Status", "Date", "Applied", "User"])
-        st.subheader("📋 Your Saved Applications")
-        st.dataframe(df_saved[["Company", "Role", "Status", "Date"]], width='stretch', hide_index=True)
+# --- PHASE 2: RESUME & MATCHING ---
+st.header("🎯 Phase 2: Resume Tailoring & AI Matching")
 
-        col_left, col_right = st.columns(2)
-        with col_left:
-            job_map = {f"{row['Company']} - {row['Role']}": row['Desc'] for _, row in df_saved.iterrows()}
-            selected_job_key = st.selectbox("Select from saved jobs:", list(job_map.keys()))
-            target_jd_text = job_map[selected_job_key]
-        with col_right:
-            res_file = st.file_uploader("Upload Resume (PDF only)", type="pdf")
+# FIX: Initialize the variable so it ALWAYS exists, even if empty
+saved_jobs_data = [] 
 
-        if res_file and st.button("🚀 Analyze Matching Gaps"):
-            pdf_reader = pypdf.PdfReader(res_file)
-            resume_content = "".join([page.extract_text() for page in pdf_reader.pages])
-            st.session_state['last_analysis'] = ai_engine.match_resume_to_job(resume_content, target_jd_text)
-            st.session_state['resume_text'] = resume_content
+try:
+    # 2. FETCH data right before it is used to avoid NameError
+    response = supabase.table("jobs").select("*").execute()
+    saved_jobs_data = response.data
+except Exception as e:
+    st.error(f"Could not connect to database: {e}")
 
-    if 'last_analysis' in st.session_state:
-        st.divider(); st.subheader("🤖 AI Career Coach")
-        st.info(f"📊 **Initial Match Report:**\n\n{st.session_state['last_analysis']}")
-        if "messages" not in st.session_state: st.session_state.messages = []
-        for message in st.session_state.messages:
-            with st.chat_message(message["role"]): st.markdown(message["content"])
+# Now the 'if' statement will work because the variable is defined above
+if saved_jobs_data:
+    df_saved = pd.DataFrame(saved_jobs_data)
+    st.subheader("📋 Your Saved Applications")
+    
+    # Display the list of jobs
+    cols = [c for c in ["Company", "Role", "Status", "Date"] if c in df_saved.columns]
+    st.dataframe(df_saved[cols], width='stretch', hide_index=True)
 
-        chat_query = st.chat_input("Ask about the job...")
-        if chat_query:
-            with st.chat_message("user"): st.markdown(chat_query)
-            st.session_state.messages.append({"role": "user", "content": chat_query})
-            with st.chat_message("assistant"):
-                is_resume_request = any(word in chat_query.lower() for word in ["resume", "update", "cv"])
-                if is_resume_request:
-                    prompt = f"RESUME: {st.session_state['resume_text']}\nJD: {target_jd_text}\nTASK: Rewrite resume sections."
-                    response = ai_engine.analyze_job_with_ai(prompt)
+    col_left, col_right = st.columns(2)
+    with col_left:
+        # Create a dropdown to pick which job to apply for
+        job_map = {f"{r.get('Company', '???')} - {r.get('Role', '???')}": r.get('Desc', '') 
+                   for _, r in df_saved.iterrows()}
+        selected_job_key = st.selectbox("Select from saved jobs:", list(job_map.keys()))
+        target_jd_text = job_map[selected_job_key]
+    with col_right:
+        res_file = st.file_uploader("Upload Resume (PDF)", type="pdf")
+
+    if res_file and st.button("🚀 Analyze Matching Gaps"):
+        pdf_reader = pypdf.PdfReader(res_file)
+        resume_content = "".join([page.extract_text() for page in pdf_reader.pages])
+        # Save analysis to session state so it stays visible
+        st.session_state['last_analysis'] = ai_engine.match_resume_to_job(resume_content, target_jd_text)
+        st.session_state['resume_text'] = resume_content
+
+# --- AI MENTOR & LATEX SECTION ---
+if 'last_analysis' in st.session_state:
+    st.divider()
+    st.subheader("💬 Career AI Mentor")
+    st.info(f"📊 **Mentor Report:**\n\n{st.session_state['last_analysis']}")
+
+    if "messages" not in st.session_state: st.session_state.messages = []
+    
+    # Show the chat history
+    for msg in st.session_state.messages:
+        with st.chat_message(msg["role"]): st.markdown(msg["content"])
+
+    # Friendly chat input
+    chat_query = st.chat_input("How can I help you with this job?")
+
+    if chat_query:
+        with st.chat_message("user"): st.markdown(chat_query)
+        st.session_state.messages.append({"role": "user", "content": chat_query})
+
+        with st.chat_message("assistant"):
+            # Check if user wants a resume update
+            is_resume_request = any(w in chat_query.lower() for w in ["resume", "update", "cv", "latex"])
+            
+            if is_resume_request:
+                with st.spinner("🖋️ Fixing mistakes and building LaTeX..."):
+                    # This function generates the LaTeX code and fixes user errors
+                    response = ai_engine.generate_latex_resume(st.session_state['resume_text'], target_jd_text)
                     st.session_state['optimized_resume'] = response
-                else:
-                    prompt = f"JD: {target_jd_text}\nQUESTION: {chat_query}"
-                    response = ai_engine.analyze_job_with_ai(prompt)
-                st.markdown(response)
-                st.session_state.messages.append({"role": "assistant", "content": response})
+                    st.markdown("I've fixed your typos and misalignments! Here is your professional LaTeX code:")
+                    st.code(response, language='latex')
+            else:
+                with st.spinner("Thinking..."):
+                    # This function talks to you like a friendly mentor
+                    response = ai_engine.career_mentor_chat(chat_query, context_data=target_jd_text)
+                    st.markdown(response)
+            
+            st.session_state.messages.append({"role": "assistant", "content": response})
 
-        if 'optimized_resume' in st.session_state:
-            def generate_pdf(text_content):
-                pdf = FPDF(); pdf.add_page(); pdf.set_font("Arial", size=11)
-                clean_text = text_content.encode('latin-1', 'replace').decode('latin-1')
-                pdf.multi_cell(0, 8, txt=clean_text)
-                return pdf.output(dest='S').encode('latin-1')
-            st.download_button("📥 Download Updated Resume", data=generate_pdf(st.session_state['optimized_resume']), file_name="Resume.pdf", mime="application/pdf")
-
+    # Show download button if resume was generated
+    if 'optimized_resume' in st.session_state:
+        st.download_button("📥 Download .tex File", st.session_state['optimized_resume'], "Professional_Resume.tex")
 # --- 5. PAGE LOGIC: IN-DEMAND COURSES (With Immediate Mail) ---
 elif page == "In-Demand Courses":
     st.title("📚 Professional Skills Hub")

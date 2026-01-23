@@ -8,7 +8,63 @@ load_dotenv()
 # Replace 'YOUR_GROQ_API_KEY' with your actual key if not using .env
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
+def generate_latex_resume(resume_text, job_description):
+    """
+    Acts as the 'Resume Architect'. 
+    Rewrites the resume in professional LaTeX format, correcting errors 
+    and aligning content for a high-end appearance.
+    """
+    prompt = f"""
+    You are a professional Resume Writer and LaTeX expert. 
+    TASK: Rewrite the following RESUME into professional LaTeX code.
+    
+    CRITICAL INSTRUCTIONS:
+    1. FORMAT: Use clean LaTeX structure (e.g., \\section{{Experience}}, \\itemize for bullets).
+    2. ERROR CORRECTION: Fix any spelling, grammar, or misalignment mistakes in the original text.
+    3. ATS OPTIMIZATION: Subtly integrate keywords from the JOB DESCRIPTION if they match the user's experience.
+    4. ALIGNMENT: Ensure dates are right-aligned and headings are bold and consistent.
+    5. STYLE: Ensure the output looks like a high-end Software Engineer or Professional resume.
 
+    RESUME:
+    {resume_text}
+
+    JOB DESCRIPTION (for context/keywords):
+    {job_description}
+
+    RETURN ONLY THE RAW LATEX CODE starting with \\documentclass. No conversational text.
+    """
+
+    chat_completion = client.chat.completions.create(
+        messages=[{"role": "user", "content": prompt}],
+        model="llama-3.3-70b-versatile",
+    )
+    return chat_completion.choices[0].message.content
+
+def career_mentor_chat(user_query, context_data=""):
+    """
+    Handles job/course questions with a friendly, mentor-like personality.
+    """
+    prompt = f"""
+    You are a friendly, encouraging, and expert Career Mentor. 
+    
+    CONTEXT (Resume/Job info): 
+    {context_data}
+
+    USER QUESTION: 
+    {user_query}
+
+    INSTRUCTIONS:
+    - If the user asks about a job, explain the pros/cons based on their skills.
+    - If they ask about a course, explain how it helps their career path.
+    - Be warm but honest. Use formatting (bolding, bullet points) to be readable.
+    - If you find mistakes in their logic, politely correct them like a helpful peer.
+    """
+    
+    chat_completion = client.chat.completions.create(
+        messages=[{"role": "user", "content": prompt}],
+        model="llama-3.3-70b-versatile",
+    )
+    return chat_completion.choices[0].message.content
 def analyze_job_with_ai(raw_text):
     prompt = f"""
     You are an expert recruiter. Read the following text.
