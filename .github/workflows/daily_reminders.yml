@@ -18,7 +18,7 @@ jobs:
           python-version: '3.9'
 
       - name: Install Dependencies
-        run: pip install supabase groq 
+        run: pip install supabase groq postgrest
 
       - name: Run Reminder Script
         env:

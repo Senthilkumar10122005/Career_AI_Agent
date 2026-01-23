@@ -146,20 +146,18 @@ def get_user_email(username):
     return result[0] if result else None
 
 def delete_user(username):
-    conn = get_connection()
-    c = conn.cursor()
     try:
-        c.execute("DELETE FROM applications WHERE username=%s", (username,))
-        c.execute("DELETE FROM goals WHERE username=%s", (username,))
-        c.execute("DELETE FROM users WHERE username=%s", (username,))
-        conn.commit()
+        # Step 1: Delete all linked goals first (Fixes foreign key error)
+        supabase.table("goals").delete().eq("username", username).execute()
+        
+        # Step 2: Delete the actual user
+        supabase.table("users").delete().eq("username", username).execute()
+        
         return True
     except Exception as e:
-        print(f"Error deleting user: {e}")
+        print(f"Database Error: {e}")
         return False
-    finally:
-        c.close()
-        conn.close()
+    
 
 def update_tables():
     """Safety function to add missing columns to your live database."""

@@ -14,10 +14,12 @@ import db
 import scraper
 import ai_engine
 
-    
+
     # --- 1. INITIALIZATION & PERSISTENCE ---
 if "auth_mode" not in st.session_state:
-    st.session_state["auth_mode"] = "Login" 
+    st.session_state["auth_mode"] = "Login"
+if 'page' not in st.session_state:
+    st.session_state['page'] = "Dashboard & Jobs" 
 
 
 try:
@@ -142,7 +144,7 @@ if not st.session_state.get('logged_in'):
             u = st.text_input("Username", placeholder="e.g. hardikpandya33")
             p = st.text_input("Password", type="password", placeholder="••••••••")
             
-            if st.button("Sign In", use_container_width=True, type="primary"):
+            if st.button("Sign In", width='stretch', type="primary"):
                 user_data = db.verify_user(u, p)
                 if user_data:
                     st.session_state.update({'logged_in': True, 'username': user_data[0], 'role': user_data[1]})
@@ -163,7 +165,7 @@ if not st.session_state.get('logged_in'):
             new_e = st.text_input("Email (Required for Daily Goals)", placeholder="email@example.com")
             new_ph = st.text_input("Phone (Optional)", placeholder="+91 XXXX XXX XXX")
             
-            if st.button("Create My Account 🚀", use_container_width=True, type="primary"):
+            if st.button("Create My Account 🚀", width='stretch', type="primary"):
                 if new_u and new_p and new_e:
                     success, msg = db.create_user(new_u, new_p, email=new_e)
                     if success:
@@ -177,68 +179,184 @@ if not st.session_state.get('logged_in'):
                 else: 
                     st.warning("⚠️ Please fill in all required fields (Username, Password, and Email).")
             
-            if st.button("Already have an account? Login here", use_container_width=False):
+            if st.button("Already have an account? Login here", width='content'):
                 st.session_state["auth_mode"] = "Login"
                 st.rerun()
 
     st.stop()
 
-# --- 3. SIDEBAR (Your Original) ---
-with st.sidebar:
-    st.title(f"👤 {st.session_state['username']}")
-    user_role = str(st.session_state.get('role', 'user')).lower()
-    if user_role == "admin":
-        st.success("🛡️ Access Level: ADMIN")
-        with st.expander("🛠️ Admin Tools", expanded=False):
-            if st.button("👥 View All Users", use_container_width=True):
-                all_users = db.get_all_users()
-                st.dataframe(pd.DataFrame(all_users, columns=["Username", "Role", "Email"]))
-            st.divider()
-            user_to_del = st.text_input("Enter Username to Delete")
-            if st.button("🗑️ Permanent Delete User", type="primary"):
-                if user_to_del and user_to_del != "senthil33":
-                    db.delete_user(user_to_del)
-                    st.warning(f"User '{user_to_del}' deleted.")
-                else: st.error("Cannot delete primary admin.")
-    else:
-        st.caption(f"Access Level: {user_role.upper()}")
+# Set default to Login so the main body knows what to show first
+page = "Login"
+
+# --- 2. THE PROTECTED SIDEBAR (Only runs if authenticated) ---
+if 'username' in st.session_state and st.session_state['username']:
+    with st.sidebar:
+        # --- ENHANCEMENT: AI Profile Header ---
+        user_role = str(st.session_state.get('role', 'User')).upper()
+        badge_color = "#FF4A4B" if user_role == "ADMIN" else "#007bff"
+
+        st.markdown(f"""
+            <div style=" background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px; border-radius: 15px; border:none; margin-bottom: 20px;">
+                <h2 style="margin:0; color: white; font-size: 20px;">👤 {st.session_state['username']}</h2>
+                <div style="margin-top: 8px;">
+                    <span style="color: lightblue; font-size: 18px; font-weight: bold;">Access: </span>
+                    <span style="background: {badge_color}; color: white; padding: 2px 8px; border-radius: 5px; font-size: 15px; font-weight: bold;">
+                        {user_role}
+                    </span>
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
+
+        # --- 3. DYNAMIC NAVIGATION (Icon Style) ---
+        user_role = str(st.session_state.get('role', 'user')).lower()
+        
+        # We use a dictionary to store icons and clean names
+        menu = {
+            "🏠 Dashboard & Jobs": "Dashboard & Jobs",
+            "🎓 Demand Courses": "In-Demand Courses",
+            "🎯 Goal Tracker": "Goal Tracker (Emails)"
+        }
+        
+        # ROLE SECURITY: Only add Admin if user is admin
+        if user_role == "admin":
+            menu["🛡️ Admin Center"] = "Admin Tools"
+
+        # NEW STYLE: Using a custom selectbox with better labeling
+        choice = st.selectbox("SEARCH MODULE", list(menu.keys()), label_visibility="collapsed")
+        page = menu[choice] # Map the icon name to your actual logic name
+
+        st.divider()
+
+        # --- 4. QUICK ACTIONS ---
+        if st.button("🚪 Log Out", type="primary", use_container_width=True):
+            st.session_state.clear(); st.query_params.clear(); st.rerun()
+        
+        st.markdown("""
+            <style>
+            button[kind="secondary"] {
+                background-color: #FF8C00 !important;
+                color: white !important;
+            }
+            </style>
+        """, unsafe_allow_html=True)
+
+        st.write("") # Spacing
+        
+        # --- 5. AI SCRATCHPAD & TOOLS ---
+        with st.expander("📝 Manual Add"):
+            m_comp = st.text_input("Company")
+            m_role = st.text_input("Role")
+            if st.button("Save Job"):
+                db.add_job(m_comp, m_role, "Manual", "N/A", st.session_state['username'])
+                st.toast("Job Saved!"); st.rerun()
+
+        st.divider()
+        # --- ENHANCED AI URL SCRAPER SECTION ---
+st.markdown("---")
+st.markdown("<p style='font-size: 12px; font-weight: bold; color: #6366f1; margin-bottom: 5px;'>✨ AI INTELLIGENCE UNIT</p>", unsafe_allow_html=True)
+
+with st.container(border=True):
+    target_url = st.text_input("🔗 Paste Job Link", key="sidebar_url", placeholder="LinkedIn, Indeed, etc.")
     
-    st.divider()
-    page = st.radio("📍 Navigation", ["Dashboard & Jobs", "In-Demand Courses", "Goal Tracker (Emails)"], index=0)
-    st.divider()
+    if st.button("🪄 Run Deep Analysis", use_container_width=True, type="primary"):
+        with st.spinner("AI is reading the JD..."):
+            scraped = scraper.scrape_job_details(target_url)
+            if scraped:
+                st.session_state['ai_scratchpad'] = ai_engine.analyze_job_with_ai(scraped)
+                st.toast("Analysis Captured to Scratchpad!", icon="🪄")
+            else:
+                st.error("Could not read URL.")
 
-    if st.button("🚪 Log Out", type="primary", use_container_width=True):
-        st.session_state.clear(); st.query_params.clear(); st.rerun()
+# --- THE DIGITAL SCRATCHPAD (Innovative Look) ---
+if st.session_state.get('ai_scratchpad'):
+    st.markdown("""
+        <div style="
+            background: #fffbe6; 
+            padding: 10px; 
+            border-left: 4px solid #fadb14; 
+            border-radius: 4px;
+            margin-top: 10px;
+        ">
+            <p style="color: #856404; font-size: 11px; font-weight: bold; margin:0;">📋 AI SCRATCHPAD</p>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    # Use a scrollable text area for the content to keep the sidebar tidy
+    st.caption(st.session_state['ai_scratchpad'][:250] + "...")
+    
+    col_a, col_b = st.columns(2)
+    with col_a:
+        if st.button("📂 Use Data", use_container_width=True):
+            st.toast("Data moved to Dashboard!")
+    with col_b:
+        if st.button("🗑️ Clear", use_container_width=True):
+            st.session_state['ai_scratchpad'] = ""
+            st.rerun()
 
-    st.subheader("📝 Manual Save Job")
-    with st.expander("Enter JD Details"):
-        m_comp = st.text_input("Company Name")
-        m_role = st.text_input("Job Role")
-        m_url = st.text_input("Job URL")
-        m_desc = st.text_area("Full Job Description")
-        if st.button("💾 Save to Dashboard"):
-            if m_comp and m_role and m_desc:
-                db.add_job(m_comp, m_role, m_url, m_desc, st.session_state['username'])
-                st.success("Saved Successfully!"); st.rerun()
-            else: st.warning("Please fill required fields.")
+# --- 4. PAGE LOGIC: ADMIN TOOLS ---
+if 'username' not in st.session_state:
+    # 1. LOGIN SCREEN (Sidebar is hidden because 'username' isn't in session)
 
-    st.divider()
-    st.subheader("✨ AI URL Analyzer")
-    target_url = st.text_input("Paste URL to Scrape", key="url_input")
-    if st.button("🪄 Run AI Analysis", use_container_width=True):
-        with st.spinner("Analyzing..."):
-            scraped_text = scraper.scrape_job_details(target_url)
-            if scraped_text:
-                analysis_res = ai_engine.analyze_job_with_ai(scraped_text)
-                st.session_state['ai_scratchpad'] = analysis_res
-                st.success("Analysis Complete!")
-            else: st.error("Failed to scrape.")
+    st.title("Welcome! Please Login to Continue")
+    # show_login_ui()
+elif page == "Admin Tools":
+    # AUTH CHECK: Ensure the user is actually an admin
+    if 'role' in st.session_state and st.session_state['role'].lower() == "admin":
+        st.title("🛡️ Admin Command Center")
+        
+        # --- A. METRICS ---
+        all_users = db.get_all_users()
+        total_users = len(all_users) if all_users else 0
+        
+        m1, m2, m3 = st.columns(3)
+        m1.metric("Total Users", total_users)
+        m2.metric("System Status", "Live", delta="Active")
+        m3.metric("DB Provider", "Supabase")
 
-    if st.session_state['ai_scratchpad']:
-        st.info(f"**AI Scratchpad:**\n\n{st.session_state['ai_scratchpad']}")
+        st.divider()
 
-# --- 4. DASHBOARD & JOBS (Your Original + Heatmap) ---
-if page == "Dashboard & Jobs":
+        # --- B. USER DIRECTORY WITH SEARCH ---
+        st.subheader("👥 User Management")
+        if all_users:
+            df = pd.DataFrame(all_users, columns=["Username", "Role", "Email"])
+            search = st.text_input("🔍 Search user by name or email", placeholder="Type to filter...")
+            if search:
+                df = df[df['Username'].str.contains(search, case=False) | df['Email'].str.contains(search, case=False)]
+            st.dataframe(df, width='stretch', hide_index=True)
+        else:
+            st.info("No users currently registered.")
+
+        st.write("") 
+
+        # --- C. DANGER ZONE ---
+        st.subheader("⚠️ Danger Zone")
+        with st.expander("Expand to Delete Users Permanently", expanded=False):
+            st.warning("Warning: Deleting a user will purge their account and all active roadmaps.")
+            col_in, col_btn = st.columns([3, 1])
+            with col_in:
+                user_to_del = st.text_input("Enter exact Username to remove", key="admin_del_input", label_visibility="collapsed")
+            with col_btn:
+                btn_del = st.button("Confirm Delete", type="primary", width='stretch')
+
+            if btn_del:
+                if user_to_del == "senthil33":
+                    st.error("❌ Action Blocked: Primary Admin protection is enabled.")
+                elif user_to_del:
+                    usernames = [u[0] for u in all_users]
+                    if user_to_del in usernames:
+                        if db.delete_user(user_to_del):
+                            st.snow(); st.toast(f"User {user_to_del} purged.", icon="🗑️")
+                            time.sleep(1.5); st.rerun()
+                        else: st.error("Deletion failed.")
+                    else: st.error("User not found.")
+    else:
+        st.error("🚫 Access Denied")
+        st.info("You do not have the required permissions. Please contact Senthil.")
+        if st.button("Return to Dashboard"):
+            st.rerun()
+
+# --- 5. DASHBOARD & JOBS ---
+elif page == "Dashboard & Jobs":
     st.title("🚀 AI Career Command Center")
     saved_jobs_data = db.fetch_jobs(st.session_state['username'])
     total_saved = len(saved_jobs_data) if saved_jobs_data else 0
@@ -283,7 +401,7 @@ if page == "Dashboard & Jobs":
                 coloraxis_showscale=False
             )
             
-            st.plotly_chart(fig, use_container_width=True, config={'responsive': True})
+            st.plotly_chart(fig, width='stretch', config={'responsive': True})
             
             # Mobile-Friendly Skill List
             missing_skills = [s for s in req_skills if s.lower() not in user_resume]
@@ -298,7 +416,7 @@ if page == "Dashboard & Jobs":
     with col_l: loc = st.text_input("Target City/State", value="Chennai")
     with col_c: coun = st.selectbox("Country Code", [("India", "in"), ("USA", "us"), ("UK", "gb")], format_func=lambda x: x[0])
     with col_s: 
-        st.write("##"); search_trigger = st.button("🔍 Search Live Jobs", use_container_width=True)
+        st.write("##"); search_trigger = st.button("🔍 Search Live Jobs", width='stretch')
 
     if search_trigger: st.cache_data.clear()
 
@@ -322,7 +440,7 @@ if page == "Dashboard & Jobs":
     if saved_jobs_data:
         df_saved = pd.DataFrame(saved_jobs_data, columns=["ID", "Company", "Role", "URL", "Desc", "Status", "Date", "Applied", "User"])
         st.subheader("📋 Your Saved Applications")
-        st.dataframe(df_saved[["Company", "Role", "Status", "Date"]], use_container_width=True, hide_index=True)
+        st.dataframe(df_saved[["Company", "Role", "Status", "Date"]], width='stretch', hide_index=True)
 
         col_left, col_right = st.columns(2)
         with col_left:
@@ -386,8 +504,8 @@ elif page == "In-Demand Courses":
     for course, links in course_data.items():
         with st.expander(f"📖 {course}"):
             c1, c2, c3 = st.columns(3)
-            with c1: st.link_button("🎓 Coursera", links["Coursera"], use_container_width=True)
-            with c2: st.link_button("📺 YouTube", links["YouTube"], use_container_width=True)
+            with c1: st.link_button("🎓 Coursera", links["Coursera"], width='stretch')
+            with c2: st.link_button("📺 YouTube", links["YouTube"], width='stretch')
        
             with c3: 
                 if st.button(f"Email me {course} guide", key=f"btn_{course}"):
