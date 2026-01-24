@@ -435,7 +435,7 @@ if not st.session_state.get('logged_in'):
             u = st.text_input("Username", placeholder="e.g. hardikpandya33", key="login_user")
             p = st.text_input("Password", type="password", placeholder="••••••••", key="login_pass")
             
-            if st.button("Sign In", use_container_width=True, type="primary", key="login_btn"):
+            if st.button("Sign In", width='stretch', type="primary", key="login_btn"):
                 user_data = db.verify_user(u, p)
                 if user_data:
                     st.session_state.update({'logged_in': True, 'username': user_data[0], 'role': user_data[1]})
@@ -458,7 +458,7 @@ if not st.session_state.get('logged_in'):
             new_p = st.text_input("Choose Password", type="password", placeholder="Strong password", key="reg_pass")
             new_e = st.text_input("Email (Required for Daily Goals)", placeholder="email@example.com", key="reg_email")
             
-            if st.button("Create My Account 🚀", use_container_width=True, type="primary", key="reg_btn"):
+            if st.button("Create My Account 🚀", width='stretch', type="primary", key="reg_btn"):
                 if new_u and new_p and new_e:
                     success, msg = db.create_user(new_u, new_p, email=new_e)
                     if success:
@@ -468,7 +468,7 @@ if not st.session_state.get('logged_in'):
                         
                         # Show login redirect button
                         st.markdown("<br>", unsafe_allow_html=True)
-                        if st.button("🔑 Login Now", use_container_width=True, type="secondary", key="goto_login"):
+                        if st.button("🔑 Login Now", width='stretch', type="secondary", key="goto_login"):
                             st.session_state["switch_to_login"] = True
                             st.rerun()
                     else: 
@@ -539,14 +539,14 @@ if 'username' in st.session_state and st.session_state['username']:
         st.markdown("<p style='font-size: 0.85rem; color: #6c757d; margin-bottom: 10px;'>NAVIGATE</p>", unsafe_allow_html=True)
         
         for label, page_name in menu.items():
-            if st.button(label, use_container_width=True, key=f"nav_{page_name}"):
+            if st.button(label, width='stretch', key=f"nav_{page_name}"):
                 st.session_state['page'] = page_name
                 st.rerun()
 
         st.divider()
 
         # Quick Actions
-        if st.button("🚪 Log Out", type="primary", use_container_width=True, key="logout_btn"):
+        if st.button("🚪 Log Out", type="primary", width='stretch', key="logout_btn"):
             st.session_state.clear()
             st.query_params.clear()
             st.rerun()
@@ -661,7 +661,7 @@ if page == "Dashboard":
                 )
             )
             
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
             
             # Show missing skills
             missing_skills = [s for s in req_skills if s.lower() not in user_resume]
@@ -693,8 +693,6 @@ if page == "Dashboard":
     st.markdown("<p class='section-subheader'>Search real-time opportunities worldwide</p>", unsafe_allow_html=True)
     
     with st.container():
-        st.markdown('<div class="modern-card">', unsafe_allow_html=True)
-        
         col_l, col_c, col_s = st.columns([2, 1.5, 1])
         
         with col_l:
@@ -708,9 +706,8 @@ if page == "Dashboard":
             )
         with col_s:
             st.markdown("<br>", unsafe_allow_html=True)
-            search_trigger = st.button("🔍 Search", use_container_width=True, type="primary", key="job_search")
-        
-        st.markdown('</div>', unsafe_allow_html=True)
+            search_trigger = st.button("🔍 Search", width='stretch', type="primary", key="job_search")
+      
 
     if search_trigger:
         with st.spinner("🔎 Scanning job markets..."):
@@ -733,10 +730,10 @@ if page == "Dashboard":
                         st.caption(f"📍 {location_info}")
                     
                     with c2:
-                        st.link_button("🌐 View", job.get('redirect_url', '#'), use_container_width=True)
+                        st.link_button("🌐 View", job.get('redirect_url', '#'), width='stretch')
                     
                     with c3:
-                        if st.button("💾 Save", key=f"feed_{job.get('id')}_{idx}", use_container_width=True):
+                        if st.button("💾 Save", key=f"feed_{job.get('id')}_{idx}", width='stretch'):
                             try:
                                 new_job = {
                                     "company": job.get('company', {}).get('display_name', 'Company'),
@@ -771,7 +768,7 @@ elif page == "AI Lab":
     # ========================================================================
     
     with tab_ai:
-        st.markdown('<div class="modern-card">', unsafe_allow_html=True)
+       
         
         target_url = st.text_input(
             "🔗 Job Posting URL", 
@@ -779,7 +776,7 @@ elif page == "AI Lab":
             placeholder="Paste LinkedIn, Indeed, or company career page link"
         )
         
-        if st.button("🪄 Run Deep Analysis", use_container_width=True, type="primary", key="ai_analyze"):
+        if st.button("🪄 Run Deep Analysis", width='stretch', type="primary", key="ai_analyze"):
             if target_url:
                 with st.spinner("🤖 AI is reading and analyzing..."):
                     scraped = scraper.scrape_job_details(target_url)
@@ -794,7 +791,7 @@ elif page == "AI Lab":
             else:
                 st.warning("Please enter a URL first.")
         
-        st.markdown('</div>', unsafe_allow_html=True)
+       
         
         # Digital Scratchpad
         if st.session_state.get('ai_scratchpad'):
@@ -811,7 +808,7 @@ elif page == "AI Lab":
             col_save, col_clear = st.columns(2)
             
             with col_save:
-                if st.button("📥 Save to Dashboard", use_container_width=True, type="primary", key="save_scratchpad"):
+                if st.button("📥 Save to Dashboard", width='stretch', type="primary", key="save_scratchpad"):
                     info = st.session_state.get('extracted_info', {"company": "New Company", "role": "Job Role"})
                     
                     payload = {
@@ -831,7 +828,7 @@ elif page == "AI Lab":
                         st.error(f"Save failed: {e}")
                         
             with col_clear:
-                if st.button("🗑️ Discard", use_container_width=True, key="clear_scratchpad"):
+                if st.button("🗑️ Discard", width='stretch', key="clear_scratchpad"):
                     st.session_state['ai_scratchpad'] = ""
                     st.rerun()
     
@@ -852,7 +849,7 @@ elif page == "AI Lab":
                 job_url = st.text_input("Job URL", placeholder="https://...")
 
             job_desc = st.text_area("Job Description*", placeholder="Paste requirements here...", height=150)
-            submit_job = st.form_submit_button("💼 Save to Career Board", use_container_width=True, type="primary")
+            submit_job = st.form_submit_button("💼 Save to Career Board", width='stretch', type="primary")
 
         if submit_job:
             if company and role and job_desc:
@@ -973,14 +970,14 @@ elif page == "AI Lab":
                 st.markdown("<br>", unsafe_allow_html=True)
                 st.markdown(f"<h3>🛠️ Tailoring for: <span style='color: #667eea;'>{current_job['company']}</span></h3>", unsafe_allow_html=True)
                 
-                st.markdown('<div class="modern-card">', unsafe_allow_html=True)
+                
                 
                 res_file = st.file_uploader("Upload Resume (PDF)", type="pdf", key="resume_uploader")
                 
                 if res_file:
                     st.caption(f"✅ File loaded: {res_file.name}")
                     
-                    if st.button("🚀 Run AI Matcher", use_container_width=True, type="primary", key="run_matcher"):
+                    if st.button("🚀 Run AI Matcher", width='stretch', type="primary", key="run_matcher"):
                         with st.spinner("🤖 Analyzing skill gaps..."):
                             pdf_reader = pypdf.PdfReader(res_file)
                             resume_content = "".join([p.extract_text() for p in pdf_reader.pages])
@@ -997,7 +994,7 @@ elif page == "AI Lab":
                             st.toast("✅ Analysis complete!")
                             st.rerun()
                 
-                st.markdown('</div>', unsafe_allow_html=True)
+         
             
             # AI Analysis Display
             if st.session_state.get('last_analysis'):
@@ -1096,20 +1093,19 @@ elif page == "In-Demand Courses":
     
     # Course Grid
     for course, links in course_data.items():
-        st.markdown('<div class="modern-card">', unsafe_allow_html=True)
         
         st.markdown(f"<h3 style='margin-bottom: 15px;'>📖 {course}</h3>", unsafe_allow_html=True)
         
         c1, c2, c3 = st.columns(3)
         
         with c1:
-            st.link_button("🎓 Coursera", links["Coursera"], use_container_width=True)
+            st.link_button("🎓 Coursera", links["Coursera"], width='stretch')
         
         with c2:
-            st.link_button("📺 YouTube", links["YouTube"], use_container_width=True)
+            st.link_button("📺 YouTube", links["YouTube"], width='stretch')
         
         with c3:
-            if st.button(f"📧 Email Guide", key=f"email_{course}", use_container_width=True):
+            if st.button(f"📧 Email Guide", key=f"email_{course}", width='stretch'):
                 user_email = db.get_user_email(st.session_state['username'])
                 if user_email:
                     with st.spinner("Sending..."):
@@ -1121,7 +1117,7 @@ elif page == "In-Demand Courses":
                     st.error("Email not found")
         
         # Start Learning Journey Button
-        if st.button(f"🚀 Start {course} Journey", key=f"start_{course}", use_container_width=True, type="primary"):
+        if st.button(f"🚀 Start {course} Journey", key=f"start_{course}", width='stretch', type="primary"):
             default_syllabus = f"Introduction to {course};Basic Concepts;Intermediate Tools;Advanced Project;Final Review"
             db.add_goal(st.session_state['username'], f"GUIDE: {course}", 30, default_syllabus)
             st.balloons()
@@ -1129,7 +1125,7 @@ elif page == "In-Demand Courses":
             time.sleep(2)
             st.rerun()
         
-        st.markdown('</div>', unsafe_allow_html=True)
+        
 
 # ============================================================================
 # PAGE 4: GOAL TRACKER
@@ -1151,14 +1147,14 @@ elif page == "Goal Tracker":
     st.markdown("<br>", unsafe_allow_html=True)
     
     # Goal Creation Form
-    st.markdown('<div class="modern-card">', unsafe_allow_html=True)
+  
     st.markdown("<h3>🚀 Start New Journey</h3>", unsafe_allow_html=True)
     
     with st.form("goal_form"):
         g_name = st.text_input("Subject to Master", placeholder="e.g. Python for DevOps, Cloud Architecture")
         g_days = st.number_input("Duration (Days)", min_value=5, max_value=90, value=30)
         
-        if st.form_submit_button("Generate Roadmap 🪄", use_container_width=True, type="primary"):
+        if st.form_submit_button("Generate Roadmap 🪄", width='stretch', type="primary"):
             if g_name:
                 with st.spinner(f"🤖 Architecting your {g_days}-day syllabus..."):
                     syllabus = ai_engine.generate_roadmap(g_name, g_days)
@@ -1171,7 +1167,7 @@ elif page == "Goal Tracker":
             else:
                 st.error("Please enter a subject.")
     
-    st.markdown('</div>', unsafe_allow_html=True)
+  
     
     # Active Journeys
     st.markdown("<br>", unsafe_allow_html=True)
@@ -1197,8 +1193,7 @@ elif page == "Goal Tracker":
             progress_pct = min(max(current_day / total_days, 0.0), 1.0)
             
             display_title = title.replace("GUIDE: ", "")
-            
-            st.markdown('<div class="modern-card">', unsafe_allow_html=True)
+         
             
             # Header
             col_title, col_archive, col_del = st.columns([4, 1, 1])
@@ -1235,7 +1230,7 @@ elif page == "Goal Tracker":
                         else:
                             st.markdown(f"⚪ Day {day_num}: {topic}")
             
-            st.markdown('</div>', unsafe_allow_html=True)
+          
 
 # ============================================================================
 # PAGE 5: ADMIN TOOLS (ENHANCED)
@@ -1262,7 +1257,7 @@ elif page == "Admin Tools":
         st.markdown("<h3>👥 User Directory</h3>", unsafe_allow_html=True)
         
         if all_users:
-            st.markdown('<div class="modern-card">', unsafe_allow_html=True)
+       
             
             df = pd.DataFrame(all_users, columns=["Username", "Role", "Email"])
             
@@ -1276,19 +1271,18 @@ elif page == "Admin Tools":
                     df.to_csv(index=False),
                     "users.csv",
                     "text/csv",
-                    use_container_width=True
+                    width='stretch'
                 )
             
             if search:
                 df = df[df['Username'].str.contains(search, case=False) | 
                        df['Email'].str.contains(search, case=False)]
             
-            st.dataframe(df, use_container_width=True, hide_index=True)
+            st.dataframe(df, width='stretch', hide_index=True)
             st.markdown('</div>', unsafe_allow_html=True)
         else:
             st.info("No users registered yet.")
         
-        st.markdown("<br>", unsafe_allow_html=True)
         
         # All Goals Overview
         st.markdown("<h3>🎯 All Learning Journeys</h3>", unsafe_allow_html=True)
@@ -1297,7 +1291,7 @@ elif page == "Admin Tools":
             st.markdown('<div class="modern-card">', unsafe_allow_html=True)
             goals_df = pd.DataFrame(all_goals, columns=["Username", "Goal", "Start Date", "Days", "Syllabus", "Email"])
             goals_df = goals_df.drop(columns=["Syllabus"])  # Remove syllabus for cleaner view
-            st.dataframe(goals_df, use_container_width=True, hide_index=True)
+            st.dataframe(goals_df, width='stretch', hide_index=True)
             st.markdown('</div>', unsafe_allow_html=True)
         else:
             st.info("No active goals in the system.")
@@ -1324,7 +1318,7 @@ elif page == "Admin Tools":
             
             with col_confirm:
                 st.markdown("<br>", unsafe_allow_html=True)
-                if st.button("🗑️ Delete User", type="primary", use_container_width=True, key="confirm_delete"):
+                if st.button("🗑️ Delete User", type="primary", width='stretch', key="confirm_delete"):
                     if user_to_del and user_to_del != "":
                         if user_to_del == "senthil33":
                             st.error("❌ Cannot delete primary admin")
