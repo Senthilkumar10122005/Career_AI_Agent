@@ -14,7 +14,7 @@ import time
 from supabase import create_client 
 
 # Import your custom modules
-import db # Updated import
+import db  # Your original import
 import scraper
 import ai_engine
 
@@ -81,6 +81,70 @@ st.markdown("""
         /* Global Font */
         * {
             font-family: 'Inter', sans-serif;
+        }
+        
+        /* Mobile Responsive Improvements */
+        @media (max-width: 768px) {
+            /* Make cards more compact on mobile */
+            .modern-card {
+                padding: 15px !important;
+                margin-bottom: 15px !important;
+            }
+            
+            /* Adjust headers for mobile */
+            .section-header {
+                font-size: 1.4rem !important;
+            }
+            
+            .section-subheader {
+                font-size: 0.85rem !important;
+            }
+            
+            /* Compact job cards */
+            .job-card {
+                padding: 15px !important;
+            }
+            
+            .company-name {
+                font-size: 1.1rem !important;
+            }
+            
+            .job-role {
+                font-size: 0.9rem !important;
+            }
+            
+            /* Make metrics more compact */
+            [data-testid="stMetricValue"] {
+                font-size: 1.5rem !important;
+            }
+            
+            /* Adjust button sizes */
+            .stButton > button {
+                font-size: 0.85rem !important;
+                padding: 0.4rem 0.8rem !important;
+            }
+            
+            /* Make columns stack on mobile */
+            [data-testid="column"] {
+                width: 100% !important;
+                flex: 100% !important;
+            }
+            
+            /* Sidebar improvements */
+            [data-testid="stSidebar"] {
+                width: 280px !important;
+            }
+        }
+        
+        /* Tablet Responsive */
+        @media (max-width: 1024px) and (min-width: 769px) {
+            .modern-card {
+                padding: 20px !important;
+            }
+            
+            .section-header {
+                font-size: 1.6rem !important;
+            }
         }
         
         /* Sidebar Branding */
@@ -230,6 +294,12 @@ st.markdown("""
         .badge-offer { background: #d1fae5; color: #065f46; }
         .badge-rejected { background: #fee2e2; color: #991b1b; }
         .badge-tailored { background: #e9d5ff; color: #6b21a8; }
+        
+        /* Hide Streamlit branding on mobile */
+        @media (max-width: 768px) {
+            #MainMenu {visibility: hidden;}
+            footer {visibility: hidden;}
+        }
     </style>
 """, unsafe_allow_html=True)
 
@@ -330,6 +400,22 @@ if "user" in st.query_params:
 # ============================================================================
 
 if not st.session_state.get('logged_in'):
+    # Mobile-responsive header
+    st.markdown("""
+        <style>
+        @media (max-width: 768px) {
+            h1 { font-size: 1.8rem !important; }
+            .stTabs [data-baseweb="tab-list"] {
+                gap: 10px;
+            }
+            .stTabs [data-baseweb="tab"] {
+                padding: 8px 12px;
+                font-size: 0.9rem;
+            }
+        }
+        </style>
+    """, unsafe_allow_html=True)
+    
     st.markdown("<h1 style='text-align: center; margin-top: 50px;'>🛡️ AI Career Agent</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; color: #6c757d; font-size: 1.1rem;'>Secure Access Portal</p>", unsafe_allow_html=True)
     
@@ -377,13 +463,23 @@ if not st.session_state.get('logged_in'):
                     success, msg = db.create_user(new_u, new_p, email=new_e)
                     if success:
                         st.balloons()
-                        st.success("Account created successfully! Please login.")
-                        time.sleep(2)
-                        st.rerun()
+                        st.toast("✅ Account created successfully!", icon="🎉")
+                        st.success("🎉 Account created! You can now login.")
+                        
+                        # Show login redirect button
+                        st.markdown("<br>", unsafe_allow_html=True)
+                        if st.button("🔑 Login Now", use_container_width=True, type="secondary", key="goto_login"):
+                            st.session_state["switch_to_login"] = True
+                            st.rerun()
                     else: 
                         st.error(f"⚠️ {msg}")
                 else: 
                     st.warning("⚠️ Please fill in all required fields (Username, Password, and Email).")
+            
+            # Check if we need to switch to login tab
+            if st.session_state.get("switch_to_login"):
+                st.session_state["switch_to_login"] = False
+                st.info("👉 Please switch to the Login tab above to sign in!")
 
     st.stop()
 
@@ -450,7 +546,7 @@ if 'username' in st.session_state and st.session_state['username']:
         st.divider()
 
         # Quick Actions
-        if st.button("🚪 Log Out", type="primary", use_container_width=True):
+        if st.button("🚪 Log Out", type="primary", use_container_width=True, key="logout_btn"):
             st.session_state.clear()
             st.query_params.clear()
             st.rerun()
@@ -597,7 +693,7 @@ if page == "Dashboard":
     st.markdown("<p class='section-subheader'>Search real-time opportunities worldwide</p>", unsafe_allow_html=True)
     
     with st.container():
-        
+        st.markdown('<div class="modern-card">', unsafe_allow_html=True)
         
         col_l, col_c, col_s = st.columns([2, 1.5, 1])
         
@@ -613,7 +709,8 @@ if page == "Dashboard":
         with col_s:
             st.markdown("<br>", unsafe_allow_html=True)
             search_trigger = st.button("🔍 Search", use_container_width=True, type="primary", key="job_search")
-    
+        
+        st.markdown('</div>', unsafe_allow_html=True)
 
     if search_trigger:
         with st.spinner("🔎 Scanning job markets..."):
@@ -999,7 +1096,7 @@ elif page == "In-Demand Courses":
     
     # Course Grid
     for course, links in course_data.items():
-       
+        st.markdown('<div class="modern-card">', unsafe_allow_html=True)
         
         st.markdown(f"<h3 style='margin-bottom: 15px;'>📖 {course}</h3>", unsafe_allow_html=True)
         
@@ -1026,12 +1123,13 @@ elif page == "In-Demand Courses":
         # Start Learning Journey Button
         if st.button(f"🚀 Start {course} Journey", key=f"start_{course}", use_container_width=True, type="primary"):
             default_syllabus = f"Introduction to {course};Basic Concepts;Intermediate Tools;Advanced Project;Final Review"
-            db.add_goal(st.session_state['username'], f"GUIDE: {course}", 5, default_syllabus)
+            db.add_goal(st.session_state['username'], f"GUIDE: {course}", 30, default_syllabus)
             st.balloons()
             st.toast(f"Journey started for {course}!", icon="🎯")
             time.sleep(2)
             st.rerun()
         
+        st.markdown('</div>', unsafe_allow_html=True)
 
 # ============================================================================
 # PAGE 4: GOAL TRACKER
