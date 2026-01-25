@@ -21,10 +21,13 @@ jobs:
         run: pip install supabase groq postgrest
 
       - name: Run Reminder Script
-        env:
+
+      - env:
           SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
           APP_PASSWORD: ${{ secrets.APP_PASSWORD }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          # CHANGE THIS LINE BELOW:
+          SUPABASE_URL: ${{ secrets.SUPABASE_DB_URL }} 
+          # AND THIS LINE:
+          SUPABASE_KEY: ${{ secrets.SUPABASE_DB_KEY }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
         run: python reminder.py
