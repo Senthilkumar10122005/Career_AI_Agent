@@ -7,8 +7,9 @@ from groq import Groq
 
 def send_daily_reminders():
     # 1. Get Secrets - Using fallbacks to match your YAML env names
-    url = os.environ.get("SUPABASE_URL") or os.environ.get("SUPABASE_DB_URL")
-    key = os.environ.get("SUPABASE_KEY") or os.environ.get("SUPABASE_DB_KEY")
+    url = os.environ.get("SUPABASE_URL") 
+    key = os.environ.get("SUPABASE_KEY")
+    
     email_user = os.environ.get("SENDER_EMAIL")
     email_pass = os.environ.get("APP_PASSWORD")
     groq_key = os.environ.get("GROQ_API_KEY")
