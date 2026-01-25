@@ -2,12 +2,14 @@ name: Daily Career Reminder
 
 on:
   schedule:
+    # Runs at 1:30 AM UTC daily (7:00 AM IST)
     - cron: '30 1 * * *'
-  workflow_dispatch: 
+  workflow_dispatch: # Allows manual trigger for testing
 
 jobs:
   send-mail:
     runs-on: ubuntu-latest
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -18,14 +20,38 @@ jobs:
           python-version: '3.9'
 
       - name: Install Dependencies
-        run: pip install supabase groq postgrest
+        run: |
+          pip install --upgrade pip
+          pip install supabase groq postgrest python-dateutil
+
+      - name: Verify Environment Variables
+        run: |
+          echo "🔍 Checking environment variables..."
+          echo "SUPABASE_URL length: ${#SUPABASE_URL}"
+          echo "SUPABASE_KEY length: ${#SUPABASE_KEY}"
+          echo "SENDER_EMAIL: $SENDER_EMAIL"
+          echo "GROQ_API_KEY length: ${#GROQ_API_KEY}"
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
+          APP_PASSWORD: ${{ secrets.APP_PASSWORD }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
 
       - name: Run Reminder Script
         env:
-          # Ensure you are grabbing the SECRET that contains the https:// link
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }} 
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
           APP_PASSWORD: ${{ secrets.APP_PASSWORD }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
         run: python reminder.py
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: error-logs
+          path: |
+            *.log
+            *.txt
