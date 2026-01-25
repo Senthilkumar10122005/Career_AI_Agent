@@ -4,7 +4,7 @@ import streamlit as st
 
 # 1. Get the cloud connection string
 # If running locally, make sure your .streamlit/secrets.toml is correct
-DB_URL = "postgresql://postgres.kkcklkchlcmmnnetdrkd:Senthil111327%40%23@aws-1-ap-south-1.pooler.supabase.com:6543/postgres?sslmode=require"
+DB_URL = "postgresql://postgres.kkcklkchlcmmnnetdrkd:Senthil24587%40%23@aws-1-ap-south-1.pooler.supabase.com:5432/postgres?sslmode=require"
 
 def make_me_admin():
     try:
