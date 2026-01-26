@@ -51,7 +51,7 @@ def send_daily_reminders():
         print(f"❌ Failed to initialize clients: {e}")
         sys.exit(1)
 
-    # Fetch Active Goals (WITHOUT join - we'll query users separately)
+    # Fetch Active Goals
     print("📊 Fetching active goals...")
     try:
         response = supabase.table("goals").select("*").eq("is_active", 1).execute()
@@ -74,18 +74,18 @@ def send_daily_reminders():
         print(f"[{idx}/{len(goals)}] Processing Goal ID: {goal_id}")
         
         try:
-            # Get user_id from goal
-            user_id = goal.get('user_id')
-            if not user_id:
-                print(f"   ⚠️ Skipping: No user_id in goal")
+            # Get username from goal
+            username = goal.get('username')
+            if not username:
+                print(f"   ⚠️ Skipping: No username in goal")
                 error_count += 1
                 continue
             
-            # Fetch user email separately
+            # Fetch user email by username
             try:
-                user_response = supabase.table("users").select("email").eq("id", user_id).execute()
+                user_response = supabase.table("users").select("email").eq("username", username).execute()
                 if not user_response.data:
-                    print(f"   ⚠️ Skipping: User {user_id} not found")
+                    print(f"   ⚠️ Skipping: User '{username}' not found in users table")
                     error_count += 1
                     continue
                 user_email = user_response.data[0]['email']
@@ -132,7 +132,8 @@ def send_daily_reminders():
                 topic = f"Review Day {current_day - len(syllabus_list)}"
             
             print(f"   📅 Day {current_day}/{total_days}: {topic}")
-            print(f"   👤 Recipient: {user_email}")
+            print(f"   👤 User: {username}")
+            print(f"   📧 Email: {user_email}")
             
             # Generate AI notes
             try:
@@ -200,7 +201,7 @@ Keep each point under 30 words."""
                         <!-- Footer Message -->
                         <div style="margin-top: 25px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
                             <p style="color: #9ca3af; font-size: 13px; margin: 0; text-align: center;">
-                                💪 Keep pushing towards your goals!<br>
+                                💪 Keep pushing towards your goals, {username}!<br>
                                 <span style="color: #d1d5db;">Automated reminder from Career AI Agent</span>
                             </p>
                         </div>
